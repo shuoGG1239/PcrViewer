@@ -15,55 +15,12 @@
         height: 100%;
         background: #444;
         -webkit-text-size-adjust: 100%;
-        font-family: Arial, Meiryo;
     }
-
-    select,
-    option {
-        font-family: Arial, Meiryo
-    }
-
-    /*body {height:101vh}*/
 
     canvas {
-        position: absolute;
         width: 100%;
         height: 100%;
-    }
-
-    .tool {
-        color: #fff;
-        position: fixed;
-        top: 0;
-        width: 100%;
-        z-index: 1;
-        cursor: default
-    }
-
-    .tool > span {
-        white-space: nowrap
-    }
-
-    .img-progress {
-        position: fixed;
-        left: 0;
-        top: -1px;
-        height: 1px;
-        opacity: 1;
-        background: #40b5ff;
-        border: solid #22648d;
-        border-width: 2px 0;
-        transition: width .3s, opacity 1s cubic-bezier(.76, 0, .86, .06)
-    }
-
-    .img-progress:after {
-        content: "";
-        position: absolute;
-        right: 0;
-        top: 0;
-        height: 1px;
-        width: 1px;
-        box-shadow: -2px -2px 3px 5px #40b5ff;
+        background: rgba(255, 255, 255, 0);
     }
 
     @media screen and (orientation: portrait) {
@@ -76,19 +33,9 @@
 </style>
 
 <body>
-<center>
-    <div class="tool">
-        <div id="loading-text">加载中</div>
-        <div>
-            <canvas width="300" height="4" style="height:2px;width:40vw;background:#FFF;margin:5px 0 0 -20vw"
-                    id="animation-progress"></canvas>
-        </div>
-        <span>
-            <input id="setAnimation" type="button" value="播放">
-        </span>
-    </div>
-</center>
-<canvas id="canvas" width="0" height="0"></canvas>
+<div style="width: 500px; height: 500px;">
+    <canvas id="canvas"></canvas>
+</div>
 <script>
     <!--
     "idle", "standBy", "walk", "run", "run_gamestart", "landing", "attack", "attack_skipQuest",
@@ -115,17 +62,10 @@
     var shapes;
     window.skeleton = {};
     var activeSkeleton = "";
-    var loadingText = document.getElementById('loading-text');
     var pendingAnimation = '';
-    var progressBar;
     var animationQueue = [];
-    var animationProgressBar = document.getElementById('animation-progress');
     var speedFactor = 1;
-    $('#speedList').change(function () {
-        var value = parseFloat($('#speedList')[0].value);
-        !isNaN(value) && (speedFactor = value);
-    });
-    var bgColor = [.3, .3, .3, 1];
+    var bgColor = [1, 1, 1, 0];
 
     function _(e, t, n) {
         var r = null;
@@ -167,7 +107,7 @@
 
     function init() {
         canvas = document.getElementById("canvas");
-        var config = {alpha: false};
+        var config = {alpha: true};
         gl = canvas.getContext("webgl", config) || canvas.getContext("experimental-webgl", config);
 
         // Create a simple shader, mesh, model-view-projection matrix and SkeletonRenderer.
@@ -212,18 +152,12 @@
         var baseUnitId = unit_id | 0;
         baseUnitId -= baseUnitId % 100 - 1;
         loadingSkeleton = {id: unit_id | 0, info: sketch_info, baseId: '000000'};
-        if (progressBar) progressBar.remove();
-        progressBar = document.body.appendChild(_('div', {
-            className: 'img-progress',
-            style: {width: '5px', opacity: 1}
-        }));
-        progressBar.style.width = '0';
         if (loadingSkeleton.info.hasSpecialBase) loadingSkeleton.baseId = baseUnitId, currentClass = baseUnitId;
         var baseId = loadingSkeleton.baseId;
 
         if (!generalBattleSkeletonData[baseId])
-            loadingText.textContent = '加载骨骼 (1/6)', loadData('common/' + baseId + '_CHARA_BASE.cysp', function (success, data) {
-                if (!success || data === null) return loading = false, loadingText.textContent = '加载共用骨架失败', progressBar.width = '100%', progressBar.opacity = 0;
+            loadData('common/' + baseId + '_CHARA_BASE.cysp', function (success, data) {
+                if (!success || data === null) return loading = false;
                 generalBattleSkeletonData[baseId] = data;
                 loadAdditionAnimation();
             }, 'arraybuffer');
@@ -231,32 +165,27 @@
     }
 
     function loadAdditionAnimation() {
-        progressBar.style.width = '10%';
         var doneCount = 0, abort = false;
         var baseId = loadingSkeleton.baseId;
         generalAdditionAnimations[baseId] = generalAdditionAnimations[baseId] || {};
         additionAnimations.forEach(function (i) {
             if (generalAdditionAnimations[baseId][i]) return doneCount++;
             loadData('common/' + baseId + '_' + i + '.cysp', function (success, data) {
-                if (!success || data == null) return abort = true, loading = false, loadingText.textContent = '加载共用骨架失败', progressBar.width = '100%', progressBar.opacity = 0;
+                if (!success || data == null) return abort = true, loading = false;
                 if (abort) return;
                 generalAdditionAnimations[baseId][i] = sliceCyspAnimation(data);
                 if (++doneCount == additionAnimations.length) loadClassAnimation();
-                loadingText.textContent = '加载额外动画 (2/6) [' + doneCount + '/6]';
-                progressBar.style.width = (10 + 15 * doneCount / 6) + '%';
             }, 'arraybuffer');
         });
         if (doneCount == additionAnimations.length) return loadClassAnimation();
-        loadingText.textContent = '加载额外动画 (2/6) [' + doneCount + '/6]';
     }
 
     function loadClassAnimation() {
-        progressBar.style.width = '25%';
         if (currentClassAnimData.type == currentClass)
             loadCharaSkillAnimation();
         else
-            loadingText.textContent = '加载职介动画 (3/6)', loadData('common/' + getClass(currentClass) + '_COMMON_BATTLE.cysp', function (success, data) {
-                if (!success || data === null) return loading = false, loadingText.textContent = '加载职介动画失败', progressBar.width = '100%', progressBar.opacity = 0;
+            loadData('common/' + getClass(currentClass) + '_COMMON_BATTLE.cysp', function (success, data) {
+                if (!success || data === null) return loading = false;
                 currentClassAnimData = {
                     type: currentClass,
                     data: sliceCyspAnimation(data)
@@ -266,14 +195,13 @@
     }
 
     function loadCharaSkillAnimation() {
-        progressBar.style.width = '35%';
         var baseUnitId = loadingSkeleton.id;
         baseUnitId -= baseUnitId % 100 - 1;
         if (currentCharaAnimData.id == baseUnitId)
             loadTexture();
         else
-            loadingText.textContent = '加载角色技能动画 (4/6)', loadData('unit/' + baseUnitId + '_BATTLE.cysp', function (success, data) {
-                if (!success || data === null) return loading = false, loadingText.textContent = '加载角色技能动画失败', progressBar.width = '100%', progressBar.opacity = 0;
+            loadData('unit/' + baseUnitId + '_BATTLE.cysp', function (success, data) {
+                if (!success || data === null) return loading = false;
                 currentCharaAnimData = {
                     id: baseUnitId,
                     data: sliceCyspAnimation(data)
@@ -283,18 +211,12 @@
     }
 
     function loadTexture() {
-        progressBar.style.width = '45%';
-        loadingText.textContent = '加载材质 (5/6)';
         loadData('unit/' + loadingSkeleton.id + '.atlas', function (success, atlasText) {
-            if (!success) return loading = false, loadingText.textContent = '加载材质失败', progressBar.width = '100%', progressBar.opacity = 0;
-            progressBar.style.width = '60%';
-            loadingText.textContent = '加载材质图片 (6/6)';
+            if (!success) return loading = false;
             loadData('unit/' + loadingSkeleton.id + '.png', function (success, blob) {
-                if (!success) return loading = false, loadingText.textContent = '加载材质图片失败';
+                if (!success) return loading = false;
                 var img = new Image();
                 img.onload = function () {
-                    progressBar.style.width = '100%';
-                    progressBar.style.opacity = 0;
                     var created = !!window.skeleton.skeleton;
                     if (created) {
                         window.skeleton.state.clearTracks();
@@ -389,7 +311,6 @@
                         premultipliedAlpha: true
                     }
                     loading = false;
-                    loadingText.textContent = '';
                     (window.updateUI || setupUI)();
                     if (!created) {
                         canvas.style.width = '99%';
@@ -403,7 +324,6 @@
                 img.src = URL.createObjectURL(blob);
             }, 'blob', function (e) {
                 var perc = e.loaded / e.total * 40 + 60;
-                progressBar.style.width = perc + '%';
             });
         })
     }
@@ -431,24 +351,9 @@
     }
 
     function setupUI() {
-        $("#setAnimation").click(function () {
-            playAnimeSeq()
-        });
         setInterval(() => {
             playAnimeSeq()
         }, 15000);
-        window.updateUI = function () {
-        };
-        // $('#bgColor')[0].addEventListener('input', function () {
-        //     var val = this.value.toUpperCase();
-        //     if (!/^[0-9A-F]{6}$/.test(val)) return;
-        //     val = parseInt(val, 16);
-        //     bgColor = [
-        //         (val >>> 16 & 0xFF) / 255,
-        //         (val >>> 8 & 0xFF) / 255,
-        //         (val & 0xFF) / 255
-        //     ];
-        // });
     }
 
     function render() {
@@ -460,8 +365,7 @@
         // Update the MVP matrix to adjust for canvas size changes
         resize();
 
-        gl.clearColor(bgColor[0], bgColor[1], bgColor[2], 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3]);
 
         // Apply the animation state based on the delta time.
         var state = window.skeleton.state;
@@ -472,14 +376,8 @@
         state.apply(skeleton);
         skeleton.updateWorldTransform();
 
-        {
-            var progressCtx = animationProgressBar.getContext('2d');
-            var track = state.tracks[0];
-            var width = 300 * ((track.animationLast - track.animationStart) / (track.animationEnd - track.animationStart));
-            progressCtx.clearRect(0, 0, 300, 4);
-            progressCtx.fillStyle = '#40b5ff';
-            progressCtx.fillRect(0, 0, width, 4);
-        }
+        // progressBar
+        // state.tracks[0].animationLast state.tracks[0].animationStart state.tracks[0].animationEnd
 
         // Bind the shader and set the texture and model-view-projection matrix.
         shader.bind();
@@ -494,19 +392,6 @@
         batcher.end();
 
         shader.unbind();
-
-        // draw debug information
-        var debug = $('#debug').is(':checked');
-        if (debug) {
-            debugShader.bind();
-            debugShader.setUniform4x4f(spine.webgl.Shader.MVP_MATRIX, mvp.values);
-            debugRenderer.premultipliedAlpha = premultipliedAlpha;
-            shapes.begin(debugShader);
-            debugRenderer.draw(shapes, skeleton);
-            shapes.end();
-            debugShader.unbind();
-        }
-
         requestAnimationFrame(render);
     }
 
@@ -521,18 +406,20 @@
             canvas.width = w;
             canvas.height = h;
         }
-
         // magic
         var centerX = bounds.offset.x + bounds.size.x / 2;
         var centerY = bounds.offset.y + bounds.size.y / 2;
         var scaleX = bounds.size.x / canvas.width;
         var scaleY = bounds.size.y / canvas.height;
-        var scale = Math.max(scaleX, scaleY) * 1.2;
+        var scale = Math.max(scaleX, scaleY) * 1.1;
         if (scale < 1) scale = 1;
         var width = canvas.width * scale;
         var height = canvas.height * scale;
-        mvp.ortho2d(centerX - width / 2, centerY - height / 2, width, height);
+        // mvp.ortho2d(centerX - width / 2, centerY - height / 2, width, height);
+        mvp.ortho2d(-350,-40, 700, 700);
+
         gl.viewport(0, 0, canvas.width, canvas.height);
+        console.log(canvas.width, canvas.height)
     }
 
     (function () {
