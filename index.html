@@ -84,13 +84,26 @@
                     id="animation-progress"></canvas>
         </div>
         <span>
-                <select id="animationList"></select>
-                <input id="setAnimation" type="button" value="播放">
-            </span>
+            <input id="setAnimation" type="button" value="播放">
+        </span>
     </div>
 </center>
 <canvas id="canvas" width="0" height="0"></canvas>
 <script>
+    <!--
+    "idle", "standBy", "walk", "run", "run_gamestart", "landing", "attack", "attack_skipQuest",
+        "joy_short,hold,joy_short_return", "joy_long,hold,joy_long_return", "damage", "die,stop",
+        "multi_standBy", "multi_idle_standBy", "multi_idle_noWeapon",
+        "29_attack", "29_attack_skipQuest", "29_damage", "29_die", "29_idle", "29_joy_long", "29_joy_long_return",
+        "29_joy_short", "29_joy_short_return", "29_landing", "29_multi_idle_noWeapon", "29_multi_idle_standBy",
+        "29_multi_standBy", "29_run", "29_run_gamestart", "29_standBy", "29_walk", "113401_joyResult", "113401_skill0",
+        "113401_skill1", "113401_skill2", "113401_sleep_0", "113401_sleep_1", "113401_sleep_2", "000000_dear_idol",
+        "000000_dear_jump", "000000_dear_smile", "000000_noWeapon_idle", "000000_noWeapon_joy_short",
+        "000000_noWeapon_run", "000000_friend_hightouch", "000000_mana_idle", "000000_mana_jump",
+        "000000_rarityup_posing", "000000_stamina_karin_ojigi", "000000_smile", "000000_run_highJump",
+        "000000_run_jump", "000000_balloon_flying_down", "000000_balloon_flying_loop", "000000_balloon_flying_up",
+        "000000_balloon_in", "000000_balloon_out", "000000_eat_jun", "000000_eat_normal", "000000_run_springJump"
+    -->
     var lastFrameTime = Date.now() / 1000;
     var canvas;
     var shader;
@@ -106,7 +119,6 @@
     var pendingAnimation = '';
     var progressBar;
     var animationQueue = [];
-    var skeletonList = document.getElementById('skeletonList');
     var animationProgressBar = document.getElementById('animation-progress');
     var speedFactor = 1;
     $('#speedList').change(function () {
@@ -361,7 +373,7 @@
                                 if (nextAnim == 'stop') return;
                                 if (nextAnim == 'hold') return setTimeout(tick, 1e3);
                                 if (nextAnim.substr(0, 1) != '1') nextAnim = getClass(currentClassAnimData.type) + '_' + nextAnim;
-                                console.log(nextAnim);
+                                console.log("anime-oncomplete", nextAnim);
                                 animationState.setAnimation(0, nextAnim, !animationQueue.length);
                             }
                         },
@@ -406,71 +418,27 @@
         return {offset: offset, size: size};
     }
 
-    function setupUI() {
-        var skeletonList = $("#skeletonList");
-        var setupAnimationUI = function () {
-            var animationList = $("#animationList");
-            animationList.empty();
-            var skeleton = window.skeleton.skeleton;
-            var state = window.skeleton.state;
-            var activeAnimation = state.tracks[0].animation.name;
-            [
-                ['闲置', 'idle'],
-                ['准备', 'standBy'],
-                ['走', 'walk'],
-                ['跑', 'run'],
-                ['跑（入场）', 'run_gamestart'],
-                ['落地', 'landing'],
-                ['攻击', 'attack'],
-                ['攻击（扫荡）', 'attack_skipQuest'],
-                ['庆祝-短', 'joy_short,hold,joy_short_return'],
-                ['庆祝-长', 'joy_long,hold,joy_long_return'],
-                ['受伤', 'damage'],
-                ['死亡', 'die,stop'],
-                ['合作-准备', 'multi_standBy'],
-                ['合作-闲置', 'multi_idle_standBy'],
-                ['合作-闲置（无武器）', 'multi_idle_noWeapon']
-            ].forEach(function (i) {
-                animationList[0].appendChild(_('option', {value: i[1]}, [_('text', i[0])]));
-            });
-            animationList[0].appendChild(_('option', {disabled: ''}, [_('text', '---')]));
-            var animeNameList = [];
-            skeleton.data.animations.forEach(function (i) {
-                animeNameList.push(`"${i.name}"`)
-                i = i.name;
-                if (!/^\d{6}_/.test(i)) return;
-                var val = i;
-                if (!/skill/.test(i)) val = i + ',stop';
-                animationList[0].appendChild(_('option', {value: val}, [
-                    _('text', i.replace(/\d{6}_skill(.+)/, '技能$1').replace(/\d{6}_joyResult/, '庆祝-角色特有'))
-                ]));
-            })
-            console.log(animeNameList.join(','));
-        }
-        $("#setAnimation").click(function () {
-            var animationState = skeleton.state, forceNoLoop = false;
-            animationQueue = $("#animationList")[0].value.split(',');
-            const a =  $("#animationList")[0].value
-            if (animationQueue[0] == 'multi_standBy') {
-                animationQueue.push('multi_idle_standBy');
-            } else if ([
-                'multi_idle_standBy', 'multi_idle_noWeapon', 'idle', 'walk', 'run', 'run_gamestart'
-            ].indexOf(animationQueue[0]) == -1) {
-                animationQueue.push('idle');
-            }
-            animationQueue = ["113401_joyResult","113401_skill1","113401_skill2","113401_sleep_0",
-                "113401_sleep_1","113401_sleep_2","idle"]
-            console.log(animationQueue);
-            var nextAnim = animationQueue.shift();
-            if (!/^\d{6}/.test(nextAnim)) nextAnim = getClass(currentClassAnimData.type) + '_' + nextAnim;
-            console.log(nextAnim);
-            animationState.setAnimation(0, nextAnim, !animationQueue.length && !forceNoLoop);
-        });
+    function playAnimeSeq() {
+        var animationState = skeleton.state, forceNoLoop = false;
+        animationQueue = [
+            "113401_joyResult", "113401_skill2", "113401_joyResult", "113401_skill2",
+            "113401_sleep_0", "113401_sleep_1", "113401_sleep_2", "idle"];
+        console.log(animationQueue);
+        var nextAnim = animationQueue.shift();
+        if (!/^\d{6}/.test(nextAnim)) nextAnim = getClass(currentClassAnimData.type) + '_' + nextAnim;
+        console.log(nextAnim);
+        animationState.setAnimation(0, nextAnim, !animationQueue.length && !forceNoLoop);
+    }
 
+    function setupUI() {
+        $("#setAnimation").click(function () {
+            playAnimeSeq()
+        });
+        setInterval(() => {
+            playAnimeSeq()
+        }, 15000);
         window.updateUI = function () {
-            setupAnimationUI();
         };
-        setupAnimationUI();
         // $('#bgColor')[0].addEventListener('input', function () {
         //     var val = this.value.toUpperCase();
         //     if (!/^[0-9A-F]{6}$/.test(val)) return;
