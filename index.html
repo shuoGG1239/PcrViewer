@@ -162,9 +162,9 @@
     }
 
     function loadClassAnimation() {
-        if (currentClassAnimData.type == currentClass)
+        if (currentClassAnimData.type == currentClass) {
             loadCharaSkillAnimation();
-        else
+        } else {
             loadData('common/' + getClass(currentClass) + '_COMMON_BATTLE.cysp', function (success, data) {
                 if (!success || data === null) return loading = false;
                 currentClassAnimData = {
@@ -173,6 +173,7 @@
                 }
                 loadCharaSkillAnimation();
             }, 'arraybuffer');
+        }
     }
 
     function loadCharaSkillAnimation() {
